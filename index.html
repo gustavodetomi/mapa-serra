@@ -6,7 +6,7 @@
         <meta name="viewport" content="initial-scale=1,user-scalable=no,maximum-scale=1,width=device-width">
         <meta name="mobile-web-app-capable" content="yes">
         <meta name="apple-mobile-web-app-capable" content="yes">
-         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
         <link rel="stylesheet" href="./resources/ol.css">
         <link rel="stylesheet" href="./resources/fontawesome-all.min.css">
         <link href="resources/ol-geocoder.min.css" rel="stylesheet">
@@ -43,25 +43,344 @@
             padding: 0;
             margin: 0;
         }
+
+        #loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #7a98bf 0%, #2c8bd3 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #ffffff;
+            transition: opacity 0.5s ease-out;
+        }
+
+        #loading-screen.fade-out {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .loading-content {
+            text-align: center;
+            max-width: 400px;
+            padding: 20px;
+        }
+
+        .loading-title {
+            font-size: 2.5em;
+            font-weight: 300;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            color: #ffffff;
+        }
+
+        .loading-subtitle {
+            font-size: 1.2em;
+            margin-bottom: 30px;
+            opacity: 0.9;
+            color: #ffffff;
+        }
+
+        .progress-container {
+            width: 100%;
+            height: 8px;
+            background: rgba(255,255,255,0.3);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 20px;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #f27405, #05b20d);
+            border-radius: 4px;
+            transition: width 0.3s ease;
+            box-shadow: 0 2px 8px rgba(242,116,5,0.4);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .progress-bar::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+            animation: shimmer 2s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { left: -100%; }
+            100% { left: 100%; }
+        }
+
+        .progress-text {
+            font-size: 1.1em;
+            margin-bottom: 15px;
+            font-weight: 500;
+            color: #ffffff;
+        }
+
+        .loading-details {
+            font-size: 0.9em;
+            opacity: 0.9;
+            line-height: 1.4;
+            color: #ffffff;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-top: 3px solid #f27405;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .file-status {
+            max-height: 150px;
+            overflow-y: auto;
+            text-align: left;
+            font-size: 0.8em;
+            background: rgba(0,0,0,0.2);
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 15px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .file-item {
+            padding: 2px 0;
+            opacity: 0.7;
+            color: #ffffff;
+        }
+
+        .file-item.loaded {
+            opacity: 1;
+            color: #05b20d;
+            font-weight: 500;
+        }
+
+        .file-item.error {
+            color: #e23f33;
+            font-weight: 500;
+        }
+
+        #current-file {
+            color: #ffffff;
+            font-weight: 500;
+        }
+
+        #map {
+            opacity: 0;
+            transition: opacity 0.5s ease-in;
+        }
+
+        #map.loaded {
+            opacity: 1;
+        }
+
+        .loading-accent {
+            width: 60px;
+            height: 4px;
+            background: linear-gradient(90deg, #f27405, #05b20d);
+            margin: 15px auto;
+            border-radius: 2px;
+        }
         </style>
-        <title></title>
+
+        <style>
+        html, body, #map {
+            width: 100%;
+            height: 100%;
+            padding: 0;
+            margin: 0;
+        }
+        </style>
+        <title>Mapa Serra da Piedade</title>
     </head>
     <body>
+        <div id="loading-screen">
+            <div class="loading-content">
+                <h1 class="loading-title">Mapa Serra</h1>
+                <div class="loading-accent"></div>
+                <p class="loading-subtitle">Carregando dados geográficos...</p>
+                
+                <div class="progress-container">
+                    <div class="progress-bar" id="progress-bar"></div>
+                </div>
+                
+                <div class="progress-text" id="progress-text">0% carregado</div>
+                
+                <div class="spinner"></div>
+                
+                <div class="loading-details">
+                    <div id="current-file">Iniciando carregamento...</div>
+                    <div class="file-status" id="file-status"></div>
+                </div>
+            </div>
+        </div>
+
         <div id="map">
             <div id="popup" class="ol-popup">
                 <a href="#" id="popup-closer" class="ol-popup-closer"></a>
                 <div id="popup-content"></div>
             </div>
         </div>
-        <script src="resources/qgis2web_expressions.js"></script>
-        <script src="./resources/functions.js"></script>
-        <script src="./resources/ol.js"></script>
-        <script src="./resources/ol-layerswitcher.js"></script>
-        <script src="resources/ol-geocoder.js"></script>
-        <script src="layers/UsodoSolo_1.js"></script><script src="layers/Limitemunicipal_2.js"></script><script src="layers/Zonadeamortecimento_3.js"></script><script src="layers/MonumentoNaturalSerradaPiedade_4.js"></script><script src="layers/Estradasnopavimentadas_5.js"></script><script src="layers/Rodovias_6.js"></script><script src="layers/Estradapavimentada_7.js"></script><script src="layers/BaslicaNossaSenhoradaPiedade_8.js"></script>
-        <script src="styles/UsodoSolo_1_style.js"></script><script src="styles/Limitemunicipal_2_style.js"></script><script src="styles/Zonadeamortecimento_3_style.js"></script><script src="styles/MonumentoNaturalSerradaPiedade_4_style.js"></script><script src="styles/Estradasnopavimentadas_5_style.js"></script><script src="styles/Rodovias_6_style.js"></script><script src="styles/Estradapavimentada_7_style.js"></script><script src="styles/BaslicaNossaSenhoradaPiedade_8_style.js"></script>
-        <script src="./layers/layers.js" type="text/javascript"></script> 
-        <script src="./resources/Autolinker.min.js"></script>
-        <script src="./resources/qgis2web.js"></script>
+
+        <script>
+        class LoadingManager {
+            constructor() {
+                this.scripts = [
+                    { src: 'resources/qgis2web_expressions.js', size: 13925, name: 'Expressões QGIS' },
+                    { src: './resources/functions.js', size: 1773, name: 'Funções auxiliares' },
+                    { src: './resources/ol.js', size: 938783, name: 'OpenLayers' },
+                    { src: './resources/ol-layerswitcher.js', size: 23484, name: 'Controle de camadas' },
+                    { src: 'resources/ol-geocoder.js', size: 16523, name: 'Geocodificador' },
+                    { src: 'layers/UsodoSolo_1.js', size: 53398381, name: 'Uso do Solo' },
+                    { src: 'layers/Limitemunicipal_2.js', size: 87374840, name: 'Limite Municipal' },
+                    { src: 'layers/Zonadeamortecimento_3.js', size: 46609, name: 'Zona de Amortecimento' },
+                    { src: 'layers/MonumentoNaturalSerradaPiedade_4.js', size: 2702, name: 'Monumento Natural' },
+                    { src: 'layers/Estradasnopavimentadas_5.js', size: 191909, name: 'Estradas não pavimentadas' },
+                    { src: 'layers/Rodovias_6.js', size: 23666, name: 'Rodovias' },
+                    { src: 'layers/Estradapavimentada_7.js', size: 23056, name: 'Estradas pavimentadas' },
+                    { src: 'layers/BaslicaNossaSenhoradaPiedade_8.js', size: 873, name: 'Basílica N.S. da Piedade' },
+                    { src: 'styles/UsodoSolo_1_style.js', size: 5000, name: 'Estilo - Uso do Solo' },
+                    { src: 'styles/Limitemunicipal_2_style.js', size: 2000, name: 'Estilo - Limite Municipal' },
+                    { src: 'styles/Zonadeamortecimento_3_style.js', size: 2000, name: 'Estilo - Zona de Amortecimento' },
+                    { src: 'styles/MonumentoNaturalSerradaPiedade_4_style.js', size: 1500, name: 'Estilo - Monumento Natural' },
+                    { src: 'styles/Estradasnopavimentadas_5_style.js', size: 3000, name: 'Estilo - Estradas não pavimentadas' },
+                    { src: 'styles/Rodovias_6_style.js', size: 2500, name: 'Estilo - Rodovias' },
+                    { src: 'styles/Estradapavimentada_7_style.js', size: 2500, name: 'Estilo - Estradas pavimentadas' },
+                    { src: 'styles/BaslicaNossaSenhoradaPiedade_8_style.js', size: 1000, name: 'Estilo - Basílica' },
+                    { src: './layers/layers.js', size: 13202, name: 'Configuração de camadas' },
+                    { src: './resources/Autolinker.min.js', size: 45435, name: 'Autolinker' },
+                    { src: './resources/qgis2web.js', size: 33813, name: 'QGIS2Web' }
+                ];
+
+                this.totalSize = this.scripts.reduce((sum, script) => sum + script.size, 0);
+                this.loadedSize = 0;
+                this.loadedCount = 0;
+                
+                this.progressBar = document.getElementById('progress-bar');
+                this.progressText = document.getElementById('progress-text');
+                this.currentFile = document.getElementById('current-file');
+                this.fileStatus = document.getElementById('file-status');
+                
+                this.initFileStatus();
+                this.loadScripts();
+            }
+
+            initFileStatus() {
+                this.fileStatus.innerHTML = this.scripts.map((script, index) => 
+                    `<div class="file-item" id="file-${index}">⏳ ${script.name}</div>`
+                ).join('');
+            }
+
+            updateProgress() {
+                const percentage = Math.round((this.loadedSize / this.totalSize) * 100);
+                this.progressBar.style.width = `${percentage}%`;
+                this.progressText.textContent = `${percentage}% carregado (${this.loadedCount}/${this.scripts.length} arquivos)`;
+                
+                const formatBytes = (bytes) => {
+                    if (bytes === 0) return '0 Bytes';
+                    const k = 1024;
+                    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+                    const i = Math.floor(Math.log(bytes) / Math.log(k));
+                    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+                };
+
+                const loadedMB = formatBytes(this.loadedSize);
+                const totalMB = formatBytes(this.totalSize);
+                this.currentFile.textContent = `${loadedMB} de ${totalMB} carregados`;
+            }
+
+            loadScript(script, index) {
+                return new Promise((resolve, reject) => {
+                    const scriptElement = document.createElement('script');
+                    scriptElement.src = script.src;
+                    
+                    scriptElement.onload = () => {
+                        this.loadedSize += script.size;
+                        this.loadedCount++;
+                        
+                        const fileItem = document.getElementById(`file-${index}`);
+                        if (fileItem) {
+                            fileItem.innerHTML = `✅ ${script.name}`;
+                            fileItem.classList.add('loaded');
+                        }
+                        
+                        this.updateProgress();
+                        resolve();
+                    };
+                    
+                    scriptElement.onerror = () => {
+                        console.error(`Erro ao carregar: ${script.src}`);
+                        this.loadedSize += script.size;
+                        this.loadedCount++;
+                        
+                        const fileItem = document.getElementById(`file-${index}`);
+                        if (fileItem) {
+                            fileItem.innerHTML = `❌ ${script.name} (erro)`;
+                            fileItem.classList.add('error');
+                        }
+                        
+                        this.updateProgress();
+                        resolve();
+                    };
+                    
+                    document.head.appendChild(scriptElement);
+                });
+            }
+
+            async loadScripts() {
+                for (let i = 0; i < this.scripts.length; i++) {
+                    const script = this.scripts[i];
+                    this.currentFile.textContent = `Carregando: ${script.name}...`;
+                    
+                    await this.loadScript(script, i);
+                    
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                }
+                
+                this.finishLoading();
+            }
+
+            finishLoading() {
+                this.currentFile.textContent = 'Carregamento concluído!';
+                
+                setTimeout(() => {
+                    const loadingScreen = document.getElementById('loading-screen');
+                    const map = document.getElementById('map');
+                    
+                    loadingScreen.classList.add('fade-out');
+                    map.classList.add('loaded');
+                    
+                    setTimeout(() => {
+                        loadingScreen.remove();
+                    }, 500);
+                }, 1000);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            new LoadingManager();
+        });
+        </script>
     </body>
 </html>
